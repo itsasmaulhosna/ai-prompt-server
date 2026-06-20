@@ -25,6 +25,46 @@ async function run() {
     // await client.connect();
     // Send a ping to confirm a successful connection
     // await client.db('admin').command({ ping: 1 });
+    const db = client.db('ai-prompt');
+    const promptCollection = db.collection('prompts');
+
+    app.post('/api/prompts', async (req, res) => {
+      try {
+        const prompt = req.body;
+
+        const newPrompt = {
+          title: prompt.title,
+          description: prompt.description,
+          content: prompt.content,
+          category: prompt.category,
+          aiTool: prompt.aiTool,
+          tags: prompt.tags || [],
+          difficulty: prompt.difficulty,
+          thumbnail: prompt.thumbnail,
+          visibility: prompt.visibility || 'public',
+          copyCount: 0,
+          status: 'pending',
+          creatorId: prompt.creatorId || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        const result = await promptCollection.insertOne(newPrompt);
+
+        res.status(201).send({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+          message: 'Failed to create prompt',
+        });
+      }
+    });
+
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
