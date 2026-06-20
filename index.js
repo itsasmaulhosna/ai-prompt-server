@@ -27,7 +27,7 @@ async function run() {
     // await client.db('admin').command({ ping: 1 });
     const db = client.db('ai-prompt');
     const promptCollection = db.collection('prompts');
-
+    //add prompt
     app.post('/api/prompts', async (req, res) => {
       try {
         const prompt = req.body;
@@ -36,17 +36,22 @@ async function run() {
           title: prompt.title,
           description: prompt.description,
           content: prompt.content,
+
           category: prompt.category,
           aiTool: prompt.aiTool,
+
           tags: prompt.tags || [],
+
           difficulty: prompt.difficulty,
+
           thumbnail: prompt.thumbnail,
-          visibility: prompt.visibility || 'public',
+
+          visibility: prompt.visibility,
+
           copyCount: 0,
           status: 'pending',
-          creatorId: prompt.creatorId || null,
+
           createdAt: new Date(),
-          updatedAt: new Date(),
         };
 
         const result = await promptCollection.insertOne(newPrompt);
@@ -64,7 +69,22 @@ async function run() {
         });
       }
     });
+    // my prompt
+    app.get('/api/prompts', async (req, res) => {
+      try {
+        const prompts = await promptCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .toArray();
 
+        res.send(prompts);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: 'Failed to fetch prompts',
+        });
+      }
+    });
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
