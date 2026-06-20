@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 dotenv.config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT;
 
@@ -50,7 +50,7 @@ async function run() {
 
           copyCount: 0,
           status: 'pending',
-
+          accessType: 'free',
           createdAt: new Date(),
         };
 
@@ -85,6 +85,124 @@ async function run() {
         });
       }
     });
+    // all prompts
+    // router.get('/', async (req, res) => {
+    //   try {
+    //     const { aiTool, category, sort } = req.query;
+
+    //     const query = {
+    //       status: 'approved',
+    //       visibility: 'public',
+    //     };
+
+    //     if (aiTool) {
+    //       query.aiTool = aiTool;
+    //     }
+
+    //     if (category) {
+    //       query.category = category;
+    //     }
+
+    //     let sortOption = {
+    //       createdAt: -1,
+    //     };
+
+    //     if (sort === 'copied') {
+    //       sortOption = {
+    //         copyCount: -1,
+    //       };
+    //     }
+
+    //     const prompts = await Prompt.find(query).sort(sortOption);
+
+    //     res.json({
+    //       success: true,
+    //       data: prompts,
+    //     });
+    //   } catch (error) {
+    //     res.status(500).json({
+    //       success: false,
+    //     });
+    //   }
+    // });
+    // All Public Approved Prompts
+
+    app.get('/api/marketplace-prompts', async (req, res) => {
+      try {
+        const { aiTool, category, sort } = req.query;
+
+        const query = {
+          status: 'approved',
+          visibility: 'public',
+        };
+
+        if (aiTool) {
+          query.aiTool = aiTool;
+        }
+
+        if (category) {
+          query.category = category;
+        }
+
+        let sortOption = {
+          createdAt: -1,
+        };
+
+        if (sort === 'copied') {
+          sortOption = {
+            copyCount: -1,
+          };
+        }
+
+        const prompts = await promptCollection
+          .find(query)
+          .sort(sortOption)
+          .toArray();
+
+        res.send({
+          success: true,
+          data: prompts,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+          message: 'Failed to fetch prompts',
+        });
+      }
+    });
+
+    // details
+    app.get('/api/prompts/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await promptCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!result) {
+          return res.status(404).json({
+            success: false,
+            message: 'Prompt not found',
+          });
+        }
+
+        res.json({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+          success: false,
+          message: 'Server Error',
+        });
+      }
+    });
+
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
