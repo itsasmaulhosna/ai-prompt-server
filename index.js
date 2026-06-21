@@ -270,6 +270,88 @@ async function run() {
       }
     });
 
+    // admin all prompts
+    app.get('/api/prompts', async (req, res) => {
+      const prompts = await promptCollection
+        .find({})
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      res.send({
+        success: true,
+        data: prompts,
+      });
+    });
+    // admin approve
+    app.patch('/api/prompts/:id/approve', async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await promptCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              status: 'approved',
+            },
+          },
+        );
+
+        res.send({
+          success: true,
+          result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+
+    // admin reject
+    app.patch('/api/prompts/:id/reject', async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await promptCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              status: 'rejected',
+            },
+          },
+        );
+
+        res.send({
+          success: true,
+          result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+
+    // delete prompt
+    app.delete('/api/prompts/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await promptCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send({
+          success: true,
+          result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
