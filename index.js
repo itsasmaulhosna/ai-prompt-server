@@ -202,7 +202,90 @@ async function run() {
         });
       }
     });
+    // copy count
+    app.patch('/api/prompts/:id/copy', async (req, res) => {
+      try {
+        const { id } = req.params;
 
+        await promptCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $inc: {
+              copyCount: 1,
+            },
+          },
+        );
+
+        const updatedPrompt = await promptCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send({
+          success: true,
+          copyCount: updatedPrompt.copyCount,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+    // rating
+    app.patch('/api/prompts/:id/rating', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { rating } = req.body;
+
+        const prompt = await promptCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!prompt) {
+          return res.status(404).send({
+            success: false,
+          });
+        }
+
+        const currentRating = prompt.rating || 0;
+
+        const currentCount = prompt.ratingCount || 0;
+
+        const newAverage =
+          (currentRating * currentCount + rating) / (currentCount + 1);
+
+        await promptCollection.updateOne(
+          {
+            _id: new ObjectId(id),
+          },
+          {
+            $set: {
+              rating: Number(newAverage.toFixed(1)),
+            },
+            $inc: {
+              ratingCount: 1,
+            },
+          },
+        );
+
+        const updatedPrompt = await promptCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send({
+          success: true,
+          rating: updatedPrompt.rating,
+          ratingCount: updatedPrompt.ratingCount,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
