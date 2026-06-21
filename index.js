@@ -27,6 +27,7 @@ async function run() {
     // await client.db('admin').command({ ping: 1 });
     const db = client.db('ai-prompt');
     const promptCollection = db.collection('prompts');
+    const reportCollection = db.collection('reports');
     //add prompt
     app.post('/api/prompts', async (req, res) => {
       try {
@@ -351,7 +352,41 @@ async function run() {
         });
       }
     });
+    // report create
+    app.post('/api/reports', async (req, res) => {
+      try {
+        const report = req.body;
 
+        report.status = 'pending';
+        report.createdAt = new Date();
+
+        const result = await reportCollection.insertOne(report);
+
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+    // get all reports
+    app.get('/api/reports', async (req, res) => {
+      try {
+        const reports = await reportCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send(reports);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
