@@ -86,46 +86,6 @@ async function run() {
       }
     });
     // all prompts
-    // router.get('/', async (req, res) => {
-    //   try {
-    //     const { aiTool, category, sort } = req.query;
-
-    //     const query = {
-    //       status: 'approved',
-    //       visibility: 'public',
-    //     };
-
-    //     if (aiTool) {
-    //       query.aiTool = aiTool;
-    //     }
-
-    //     if (category) {
-    //       query.category = category;
-    //     }
-
-    //     let sortOption = {
-    //       createdAt: -1,
-    //     };
-
-    //     if (sort === 'copied') {
-    //       sortOption = {
-    //         copyCount: -1,
-    //       };
-    //     }
-
-    //     const prompts = await Prompt.find(query).sort(sortOption);
-
-    //     res.json({
-    //       success: true,
-    //       data: prompts,
-    //     });
-    //   } catch (error) {
-    //     res.status(500).json({
-    //       success: false,
-    //     });
-    //   }
-    // });
-    // All Public Approved Prompts
 
     app.get('/api/marketplace-prompts', async (req, res) => {
       try {
@@ -169,6 +129,29 @@ async function run() {
         res.status(500).send({
           success: false,
           message: 'Failed to fetch prompts',
+        });
+      }
+    });
+
+    // featured prompts
+    app.get('/api/prompts/featured', async (req, res) => {
+      try {
+        console.log('FEATURED ROUTE HIT');
+
+        const result = await promptCollection.find({}).limit(6).toArray();
+
+        console.log(result);
+
+        res.json({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        console.error('FEATURED ERROR =>', error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
         });
       }
     });
@@ -286,6 +269,7 @@ async function run() {
         });
       }
     });
+
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
