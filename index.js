@@ -28,6 +28,7 @@ async function run() {
     const db = client.db('ai-prompt');
     const promptCollection = db.collection('prompts');
     const reportCollection = db.collection('reports');
+    const paymentCollection = db.collection('payments');
     //add prompt
     app.post('/api/prompts', async (req, res) => {
       try {
@@ -412,6 +413,68 @@ async function run() {
       } catch (error) {
         res.status(500).send({
           success: false,
+        });
+      }
+    });
+    // admin analytics
+    app.get('/api/admin/analytics', async (req, res) => {
+      try {
+        // Total Prompts
+        const totalPrompts = await promptCollection.countDocuments();
+
+        // Total Reviews
+        const totalReviews = await reportCollection.countDocuments();
+
+        // Total Copies
+        const copiesResult = await promptCollection
+          .aggregate([
+            {
+              $group: {
+                _id: null,
+                totalCopies: {
+                  $sum: '$copyCount',
+                },
+              },
+            },
+          ])
+          .toArray();
+
+        const totalCopies = copiesResult[0]?.totalCopies || 0;
+
+        // Total Revenue
+        // const revenueResult =
+        //   await paymentCollection
+        //     .aggregate([
+        //       {
+        //         $group: {
+        //           _id: null,
+        //           totalRevenue: {
+        //             $sum: '$amount',
+        //           },
+        //         },
+        //       },
+        //     ])
+        //     .toArray()
+
+        // const totalRevenue =
+        //   revenueResult[0]?.totalRevenue || 0
+        const totalRevenue = 0;
+
+        res.send({
+          success: true,
+          data: {
+            totalPrompts,
+            totalReviews,
+            totalCopies,
+            totalRevenue,
+          },
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+          message: 'Failed to load analytics',
         });
       }
     });
