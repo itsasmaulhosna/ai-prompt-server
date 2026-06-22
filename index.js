@@ -29,7 +29,7 @@ async function run() {
     const promptCollection = db.collection('prompts');
     const reportCollection = db.collection('reports');
     const paymentCollection = db.collection('payments');
-    //add prompt
+    // add prompt
     app.post('/api/prompts', async (req, res) => {
       try {
         const prompt = req.body;
@@ -38,18 +38,13 @@ async function run() {
           title: prompt.title,
           description: prompt.description,
           content: prompt.content,
-
           category: prompt.category,
           aiTool: prompt.aiTool,
-
           tags: prompt.tags || [],
-
           difficulty: prompt.difficulty,
-
           thumbnail: prompt.thumbnail,
-
           visibility: prompt.visibility,
-
+          userEmail: prompt.userEmail,
           copyCount: 0,
           status: 'pending',
           accessType: 'free',
@@ -68,22 +63,6 @@ async function run() {
         res.status(500).send({
           success: false,
           message: 'Failed to create prompt',
-        });
-      }
-    });
-    // my prompt
-    app.get('/api/prompts', async (req, res) => {
-      try {
-        const prompts = await promptCollection
-          .find({})
-          .sort({ createdAt: -1 })
-          .toArray();
-
-        res.send(prompts);
-      } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: 'Failed to fetch prompts',
         });
       }
     });
@@ -134,7 +113,6 @@ async function run() {
         });
       }
     });
-
     // featured prompts
     app.get('/api/prompts/featured', async (req, res) => {
       try {
@@ -477,6 +455,33 @@ async function run() {
           message: 'Failed to load analytics',
         });
       }
+    });
+    // user my prompts
+    app.get('/api/prompts/user/:email', async (req, res) => {
+      const result = await promptCollection
+        .find({ userEmail: req.params.email })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      res.send({
+        success: true,
+        data: result,
+      });
+    });
+    // marketplace prompts approve
+    app.get('/api/marketplace-prompts', async (req, res) => {
+      const result = await promptCollection
+        .find({
+          status: 'approved',
+          visibility: 'public',
+        })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      res.send({
+        success: true,
+        data: result,
+      });
     });
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
