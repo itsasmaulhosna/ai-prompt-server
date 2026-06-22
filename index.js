@@ -307,7 +307,35 @@ async function run() {
         });
       }
     });
+    // change access type
+    app.patch('/api/prompts/:id/access', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { accessType } = req.body;
 
+        const result = await promptCollection.updateOne(
+          {
+            _id: new ObjectId(id),
+          },
+          {
+            $set: {
+              accessType,
+            },
+          },
+        );
+
+        res.send({
+          success: true,
+          result,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
     // admin reject
     app.patch('/api/prompts/:id/reject', async (req, res) => {
       try {
