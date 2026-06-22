@@ -456,17 +456,58 @@ async function run() {
         });
       }
     });
+    // user add prompts
+    app.post('/api/prompts', async (req, res) => {
+      try {
+        const prompt = req.body;
+
+        const newPrompt = {
+          ...prompt,
+          status: 'pending', // 🔥 IMPORTANT
+          createdAt: new Date(),
+        };
+
+        await promptCollection.insertOne(newPrompt);
+
+        res.send({
+          success: true,
+          message: 'Prompt submitted for review',
+        });
+      } catch (error) {
+        res.status(500).send({ success: false });
+      }
+    });
     // user my prompts
     app.get('/api/prompts/user/:email', async (req, res) => {
-      const result = await promptCollection
-        .find({ userEmail: req.params.email })
-        .sort({ createdAt: -1 })
-        .toArray();
+      try {
+        const result = await promptCollection
+          .find({ userEmail: req.params.email })
+          .sort({ createdAt: -1 })
+          .toArray();
 
-      res.send({
-        success: true,
-        data: result,
-      });
+        res.send({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        res.status(500).send({ success: false });
+      }
+    });
+    // admin approve prompt
+    app.get('/api/admin/prompts', async (req, res) => {
+      try {
+        const result = await promptCollection
+          .find({ status: 'pending' })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        res.status(500).send({ success: false });
+      }
     });
     // marketplace prompts approve
     app.get('/api/marketplace-prompts', async (req, res) => {
@@ -481,6 +522,71 @@ async function run() {
       res.send({
         success: true,
         data: result,
+      });
+    });
+    //add bookmark
+    app.post('/api/bookmarks', async (req, res) => {
+      const { userEmail, promptId } = req.body;
+
+      const exists = await db.collection('bookmarks').findOne({
+        userEmail,
+        promptId,
+      });
+
+      if (exists) {
+        return res.send({ success: false, message: 'Already bookmarked' });
+      }
+
+      await db.collection('bookmarks').insertOne({
+        userEmail,
+        promptId,
+        createdAt: new Date(),
+      });
+
+      // ⭐ IMPORTANT: increase bookmark count in prompt
+      await promptCollection.updateOne(
+        { _id: new ObjectId(promptId) },
+        { $inc: { bookmarksCount: 1 } },
+      );
+
+      res.send({ success: true });
+    });
+    // remove bookmark
+    app.delete('/api/bookmarks', async (req, res) => {
+      const { userEmail, promptId } = req.body;
+
+      const deleted = await db.collection('bookmarks').deleteOne({
+        userEmail,
+        promptId,
+      });
+
+      if (deleted.deletedCount > 0) {
+        await promptCollection.updateOne(
+          { _id: new ObjectId(promptId) },
+          { $inc: { bookmarksCount: -1 } },
+        );
+      }
+
+      res.send({ success: true });
+    });
+    // user bookmark
+    app.get('/api/bookmarks/:email', async (req, res) => {
+      const email = req.params.email;
+
+      const bookmarks = await db
+        .collection('bookmarks')
+        .find({ userEmail: email })
+        .toArray();
+
+      const ids = bookmarks.map((b) => new ObjectId(b.promptId));
+
+      const prompts = await promptCollection
+        .find({ _id: { $in: ids } })
+        .toArray();
+
+      res.send({
+        success: true,
+        data: prompts,
       });
     });
     console.log(
