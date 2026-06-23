@@ -31,6 +31,7 @@ async function run() {
     const paymentCollection = db.collection('payments');
     const reviewCollection = db.collection('reviews');
     const premiumCollection = db.collection('premiumUsers');
+    const usersCollection = db.collection('user');
     // add prompt
     app.post('/api/prompts', async (req, res) => {
       try {
@@ -49,7 +50,9 @@ async function run() {
           userEmail: prompt.userEmail,
           copyCount: 0,
           status: 'pending',
-          accessType: 'free',
+
+          accessType: prompt.visibility === 'private' ? 'premium' : 'free',
+
           createdAt: new Date(),
         };
 
@@ -69,37 +72,27 @@ async function run() {
       }
     });
     // all prompts
-
     app.get('/api/marketplace-prompts', async (req, res) => {
       try {
-        const { aiTool, category, sort } = req.query;
+        const { aiTool, category, difficulty } = req.query;
 
-        const query = {
-          status: 'approved',
-          visibility: 'public',
-        };
+        const query = {};
 
-        if (aiTool) {
+        if (aiTool && aiTool !== 'All') {
           query.aiTool = aiTool;
         }
 
-        if (category) {
+        if (category && category !== 'All') {
           query.category = category;
         }
 
-        let sortOption = {
-          createdAt: -1,
-        };
-
-        if (sort === 'copied') {
-          sortOption = {
-            copyCount: -1,
-          };
+        if (difficulty && difficulty !== 'All') {
+          query.difficulty = difficulty;
         }
 
         const prompts = await promptCollection
           .find(query)
-          .sort(sortOption)
+          .sort({ createdAt: -1 })
           .toArray();
 
         res.send({
@@ -115,6 +108,7 @@ async function run() {
         });
       }
     });
+
     // featured prompts
     app.get('/api/prompts/featured', async (req, res) => {
       try {
@@ -251,7 +245,60 @@ async function run() {
         });
       }
     });
+    // creator analytic
+    app.get('/api/creator/analytics', async (req, res) => {
+      try {
+        const prompts = await promptCollection.find({}).toArray();
 
+        const totalPrompts = prompts.length;
+
+        const totalCopies = prompts.reduce(
+          (sum, prompt) => sum + (prompt.copyCount || 0),
+          0,
+        );
+
+        const totalBookmarks = prompts.reduce(
+          (sum, prompt) => sum + (prompt.bookmarksCount || 0),
+          0,
+        );
+
+        const copiesData = prompts.map((prompt) => ({
+          name: prompt.title.slice(0, 15),
+          copies: prompt.copyCount || 0,
+        }));
+
+        const growthMap = {};
+
+        prompts.forEach((prompt) => {
+          const month = new Date(prompt.createdAt).toLocaleString('default', {
+            month: 'short',
+          });
+
+          growthMap[month] = (growthMap[month] || 0) + 1;
+        });
+
+        const growthData = Object.keys(growthMap).map((month) => ({
+          month,
+          prompts: growthMap[month],
+        }));
+
+        res.send({
+          success: true,
+          totalPrompts,
+          totalCopies,
+          totalBookmarks,
+          copiesData,
+          growthData,
+          recentPrompts: prompts.slice(-5).reverse(),
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
     // admin all prompts
     app.get('/api/prompts', async (req, res) => {
       const prompts = await promptCollection
@@ -456,6 +503,53 @@ async function run() {
           success: false,
           message: 'Failed to load analytics',
         });
+      }
+    });
+    // get admin/users
+    app.get('/api/users', async (req, res) => {
+      try {
+        const users = await usersCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send(users);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
+    // update admin/user
+    app.patch('/api/users/:id/role', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { role } = req.body;
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              role,
+            },
+          },
+        );
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
+    // delete admin/user
+    app.delete('/api/users/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await usersCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: error.message });
       }
     });
     // user add prompts
@@ -688,6 +782,75 @@ async function run() {
         success: true,
         isPremium: !!result,
       });
+    });
+    // top creator
+    app.get('/api/top-creators', async (req, res) => {
+      try {
+        const result = await promptCollection
+          .aggregate([
+            {
+              $group: {
+                _id: '$userEmail',
+                totalPrompts: { $sum: 1 },
+              },
+            },
+            {
+              $sort: {
+                totalPrompts: -1,
+              },
+            },
+            {
+              $limit: 6,
+            },
+          ])
+          .toArray();
+
+        const creators = await Promise.all(
+          result.map(async (creator) => {
+            const user = await usersCollection.findOne({
+              email: creator._id,
+            });
+
+            return {
+              email: creator._id,
+              name: user?.name || 'Unknown',
+              image: user?.image || '',
+              role: user?.role || 'creator',
+              totalPrompts: creator.totalPrompts,
+            };
+          }),
+        );
+
+        res.send({
+          success: true,
+          data: creators,
+        });
+      } catch (error) {
+        console.log(error);
+
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+    // users review
+    app.get('/api/reviews', async (req, res) => {
+      try {
+        const reviews = await reviewCollection
+          .find({})
+          .sort({ createdAt: -1 })
+          .limit(6)
+          .toArray();
+
+        res.send({
+          success: true,
+          data: reviews,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
     });
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
