@@ -29,6 +29,8 @@ async function run() {
     const promptCollection = db.collection('prompts');
     const reportCollection = db.collection('reports');
     const paymentCollection = db.collection('payments');
+    const reviewCollection = db.collection('reviews');
+    const premiumCollection = db.collection('premiumUsers');
     // add prompt
     app.post('/api/prompts', async (req, res) => {
       try {
@@ -587,6 +589,104 @@ async function run() {
       res.send({
         success: true,
         data: prompts,
+      });
+    });
+    // post review
+    app.post('/api/reviews', async (req, res) => {
+      const review = req.body;
+
+      const newReview = {
+        promptId: review.promptId,
+        userEmail: review.userEmail,
+        userName: review.userName,
+        rating: review.rating,
+        text: review.text,
+        createdAt: new Date(),
+      };
+
+      await reviewCollection.insertOne(newReview);
+
+      res.send({ success: true });
+    });
+    // get review
+    app.get('/api/reviews/:promptId', async (req, res) => {
+      const result = await reviewCollection
+        .find({ promptId: req.params.promptId })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      res.send({ success: true, data: result });
+    });
+    // user review
+    app.get('/api/reviews/user/:email', async (req, res) => {
+      const result = await reviewCollection
+        .find({ userEmail: req.params.email })
+        .sort({ createdAt: -1 })
+        .toArray();
+
+      res.send({ success: true, data: result });
+    });
+    //post payment api
+    app.post('/api/payments', async (req, res) => {
+      try {
+        const payment = req.body;
+
+        const result = await paymentCollection.insertOne({
+          ...payment,
+          createdAt: new Date(),
+        });
+
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+    // upgrade api
+    app.post('/api/users/upgrade', async (req, res) => {
+      try {
+        const { email } = req.body;
+
+        const exists = await premiumCollection.findOne({
+          email,
+        });
+
+        if (exists) {
+          return res.send({
+            success: true,
+            alreadyPremium: true,
+          });
+        }
+
+        await premiumCollection.insertOne({
+          email,
+          plan: 'premium',
+          amount: 5,
+          createdAt: new Date(),
+        });
+
+        res.send({
+          success: true,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+        });
+      }
+    });
+    // check perium api
+    app.get('/api/users/premium/:email', async (req, res) => {
+      const result = await premiumCollection.findOne({
+        email: req.params.email,
+      });
+
+      res.send({
+        success: true,
+        isPremium: !!result,
       });
     });
     console.log(
