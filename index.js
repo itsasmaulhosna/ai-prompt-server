@@ -852,6 +852,34 @@ async function run() {
         });
       }
     });
+    // user make perium
+    app.patch('/api/users/make-premium', async (req, res) => {
+      const { email } = req.body;
+
+      const result = await usersCollection.updateOne(
+        { email },
+        {
+          $set: {
+            isPremium: true,
+          },
+        },
+      );
+
+      res.send({
+        success: true,
+        result,
+      });
+    });
+    // check perium
+    app.get('/api/users/premium/:email', async (req, res) => {
+      const user = await usersCollection.findOne({
+        email: req.params.email,
+      });
+
+      res.send({
+        isPremium: user?.isPremium || false,
+      });
+    });
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!',
     );
